@@ -97,7 +97,7 @@ def get_file_diff(commit1, commit2):
     return ret
 
 def mkdir_p(path):
-    print("mkdir_p: " + path)
+    # print("mkdir_p: " + path)
     try:
         os.makedirs(path)
     except OSError as exc:  # Python >2.5
@@ -137,33 +137,40 @@ def zip_tag_diffs(path):
     tag_list = get_git_tags()
 
     idx = 0
-    while idx < len(tag_list) - 2:
+    jdx = 0
 
-        os.chdir(path)
+    while idx < len(tag_list) - 1:
 
-        start_tag = tag_list[idx]["tag"]
-        start_commit = tag_list[idx]["commit"]
+        jdx = idx + 1
+        while jdx < len(tag_list):
 
-        end_tag = tag_list[idx + 1]["tag"]
-        end_commit = tag_list[idx + 1]["commit"]
+            os.chdir(path)
 
-        print(start_tag + "_" + end_tag)
+            start_tag = tag_list[idx]["tag"]
+            start_commit = tag_list[idx]["commit"]
 
-        print(run_cmd(['git', 'checkout', end_commit]))
+            end_tag = tag_list[jdx]["tag"]
+            end_commit = tag_list[jdx]["commit"]
 
-        diffs = get_file_diff(start_commit, end_commit)
+            print("zip diff: " + start_tag + "_" + end_tag)
 
-        des_folder = parent_path + "/" + start_tag + "_" + end_tag
+            print(run_cmd(['git', 'checkout', end_commit]))
 
-        copy_diffs(path, des_folder, diffs)
+            diffs = get_file_diff(start_commit, end_commit)
 
-        os.chdir(des_folder)
-        print("cd " + os.getcwd())
+            des_folder = parent_path + "/" + start_tag + "_" + end_tag
 
-        cmd = "zip -r ../" + start_tag + "_" + end_tag + ".zip *"
-        os.system(cmd)
+            copy_diffs(path, des_folder, diffs)
 
-        shutil.rmtree(des_folder)
+            os.chdir(des_folder)
+            print("cd " + os.getcwd())
+
+            cmd = "zip -r ../" + start_tag + "_" + end_tag + ".zip *"
+            os.system(cmd)
+
+            shutil.rmtree(des_folder)
+
+            jdx += 1
 
         idx += 1
 
