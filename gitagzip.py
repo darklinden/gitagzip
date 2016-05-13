@@ -133,6 +133,8 @@ def zip_tag_diffs(path):
 
     parent_path, src = os.path.split(path)
 
+    print("parent_path: " + parent_path)
+    print("src: " + src)
     os.chdir(path)
     tag_list = get_git_tags()
 
@@ -202,8 +204,12 @@ def __main__():
         os.system("git init")
         make_test_commits(path)
     else:
+        if path[-1] == "/":
+            path = path[:len(path) - 1]
+            
         if path[0] != "/":
-            path = os.getcwd() + "/" + path
-        zip_tag_diffs(path)
+            zip_tag_diffs(os.getcwd() + "/" + path)
+        else:
+            zip_tag_diffs(path)
 
 __main__()
