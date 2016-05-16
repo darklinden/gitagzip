@@ -36,19 +36,37 @@ def self_install(file, des):
     shutil.copy(file_path, to_path)
     run_cmd(['chmod', 'a+x', to_path])
 
-def touch_file(path, idx):
-    p = os.path.join(path, idx + ".txt")
-    f = open(p, "wb")
-    f.write(idx)
+def touch_file(path, content):
+    f = open(path, "wb")
+    f.write(content)
     f.close()
 
-def make_test_commits(path):
+def make_test1_commits(path):
 
     os.chdir(path)
 
     idx = 0
     while idx < 100:
-        touch_file(path, str(idx))
+        p = os.path.join(path, str(idx) + ".txt")
+
+        touch_file(p, str(idx))
+        idx += 1
+
+        print(run_cmd(['git', 'add', '--all', '.']))
+        print(run_cmd(['git', 'commit', '-m', "\"" + str(idx) + "\""]))
+
+    print("make test commit Done")
+
+def make_test2_commits(path):
+
+    os.chdir(path)
+
+    idx = 0
+    while idx < 100:
+        for fi in xrange(0, 10):
+            p = os.path.join(path, str(fi) + ".txt")
+            touch_file(p, str(idx))
+
         idx += 1
 
         print(run_cmd(['git', 'add', '--all', '.']))
@@ -79,7 +97,7 @@ def get_git_tags():
 
     return ret
 
-def get_file_diff(commit1, commit2):
+def get_file_diff(commit1, commit2, prefixes, excludes):
     ls = run_cmd(['git', 'diff', '--name-status', commit1, commit2])
     lines = ls.split("\n")
 
@@ -90,6 +108,29 @@ def get_file_diff(commit1, commit2):
         if len(line.strip()) > 0:
             sl = line.split("\t")
             file = sl[-1]
+
+            if len(prefixes) > 0:
+                hasPrefix = False
+                for p in prefixes:
+                    if file.startswith(p):
+                        hasPrefix = True
+                        break
+
+                if not hasPrefix:
+                    idx += 1
+                    continue
+
+            if len(excludes) > 0:
+                hasExclude = False
+                for e in excludes:
+                    if str(file).find(e) != -1:
+                        hasExclude = True
+                        break
+
+                if hasExclude:
+                    idx += 1
+                    continue
+
             ret.append(file)
 
         idx += 1
@@ -126,10 +167,11 @@ def copy_diffs(src_path, des_path, diffs):
     idx = 0
     while idx < len(diffs):
         file = diffs[idx]
+
         path_copy(src_path, des_path, file)
         idx += 1
 
-def zip_tag_diffs(path):
+def zip_tag_diffs(path, prefixes, excludes):
 
     parent_path, src = os.path.split(path)
 
@@ -158,7 +200,7 @@ def zip_tag_diffs(path):
 
             print(run_cmd(['git', 'checkout', end_commit]))
 
-            diffs = get_file_diff(start_commit, end_commit)
+            diffs = get_file_diff(start_commit, end_commit, prefixes, excludes)
 
             des_folder = parent_path + "/" + start_tag + "_" + end_tag
 
@@ -192,24 +234,48 @@ def __main__():
         return
 
     if len(path) == 0:
-        print("using gitagzip [git-path] to zip git tag diffs")
-        print("using gitagzip test to make test git repository")
+        print("using gitagzip [git-path] [-p prefix] [-e exclude] to zip git tag diffs")
+        print("using gitagzip test1 to make test git repository")
+        print("using gitagzip test2 to make test git repository")
         return
 
-    if path == "test":
+    if path == "test1":
         path = os.getcwd()
-        path += "/git_test_repo"
+        path += "/test-repo1"
         mkdir_p(path)
         os.chdir(path)
         os.system("git init")
-        make_test_commits(path)
+        make_test1_commits(path)
+    elif path == "test2":
+        path = os.getcwd()
+        path += "/test-repo2"
+        mkdir_p(path)
+        os.chdir(path)
+        os.system("git init")
+        make_test2_commits(path)
     else:
+        prefixes = []
+        excludes = []
+
+        idx = 2
+        while idx < len(sys.argv) - 1:
+            key = sys.argv[idx]
+            value = sys.argv[idx + 1]
+
+            if key.lower() == "-p":
+                prefixes.append(value)
+
+            if key.lower() == "-e":
+                excludes.append(value)
+
+            idx += 2
+
         if path[-1] == "/":
             path = path[:len(path) - 1]
-            
+
         if path[0] != "/":
-            zip_tag_diffs(os.getcwd() + "/" + path)
+            zip_tag_diffs(os.getcwd() + "/" + path, prefixes, excludes)
         else:
-            zip_tag_diffs(path)
+            zip_tag_diffs(path, prefixes, excludes)
 
 __main__()
