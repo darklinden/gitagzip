@@ -107,31 +107,33 @@ def get_file_diff(commit1, commit2, prefixes, excludes):
         line = lines[idx]
         if len(line.strip()) > 0:
             sl = line.split("\t")
+            act = sl[0]
             file = sl[-1]
 
-            if len(prefixes) > 0:
-                hasPrefix = False
-                for p in prefixes:
-                    if file.startswith(p):
-                        hasPrefix = True
-                        break
+            if act == "A" or act == "M":
+                if len(prefixes) > 0:
+                    hasPrefix = False
+                    for p in prefixes:
+                        if file.startswith(p):
+                            hasPrefix = True
+                            break
 
-                if not hasPrefix:
-                    idx += 1
-                    continue
+                    if not hasPrefix:
+                        idx += 1
+                        continue
 
-            if len(excludes) > 0:
-                hasExclude = False
-                for e in excludes:
-                    if str(file).find(e) != -1:
-                        hasExclude = True
-                        break
+                if len(excludes) > 0:
+                    hasExclude = False
+                    for e in excludes:
+                        if str(file).find(e) != -1:
+                            hasExclude = True
+                            break
 
-                if hasExclude:
-                    idx += 1
-                    continue
+                    if hasExclude:
+                        idx += 1
+                        continue
 
-            ret.append(file)
+                ret.append(file)
 
         idx += 1
 
