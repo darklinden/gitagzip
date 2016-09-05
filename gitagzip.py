@@ -1,10 +1,14 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 import subprocess
 import os
 import shutil
 import errno
 import sys
+
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 def run_cmd(cmd):
     print("run cmd: " + " ".join(cmd))
@@ -36,44 +40,6 @@ def self_install(file, des):
     shutil.copy(file_path, to_path)
     run_cmd(['chmod', 'a+x', to_path])
 
-def touch_file(path, content):
-    f = open(path, "wb")
-    f.write(content)
-    f.close()
-
-def make_test1_commits(path):
-
-    os.chdir(path)
-
-    idx = 0
-    while idx < 100:
-        p = os.path.join(path, str(idx) + ".txt")
-
-        touch_file(p, str(idx))
-        idx += 1
-
-        print(run_cmd(['git', 'add', '--all', '.']))
-        print(run_cmd(['git', 'commit', '-m', "\"" + str(idx) + "\""]))
-
-    print("make test commit Done")
-
-def make_test2_commits(path):
-
-    os.chdir(path)
-
-    idx = 0
-    while idx < 100:
-        for fi in xrange(0, 10):
-            p = os.path.join(path, str(fi) + ".txt")
-            touch_file(p, str(idx))
-
-        idx += 1
-
-        print(run_cmd(['git', 'add', '--all', '.']))
-        print(run_cmd(['git', 'commit', '-m', "\"" + str(idx) + "\""]))
-
-    print("make test commit Done")
-
 def get_git_tags():
 
     tags = run_cmd(['git', 'tag', '--list'])
@@ -97,7 +63,7 @@ def get_git_tags():
 
     return ret
 
-def get_file_diff(commit1, commit2, prefixes, excludes):
+def get_file_diff(commit1, commit2, folders):
     ls = run_cmd(['git', 'diff', '--name-status', commit1, commit2])
     lines = ls.split("\n")
 
@@ -111,25 +77,14 @@ def get_file_diff(commit1, commit2, prefixes, excludes):
             file = sl[-1]
 
             if act == "A" or act == "M":
-                if len(prefixes) > 0:
+                if len(folders) > 0:
                     hasPrefix = False
-                    for p in prefixes:
+                    for p in folders:
                         if file.startswith(p):
                             hasPrefix = True
                             break
 
                     if not hasPrefix:
-                        idx += 1
-                        continue
-
-                if len(excludes) > 0:
-                    hasExclude = False
-                    for e in excludes:
-                        if str(file).find(e) != -1:
-                            hasExclude = True
-                            break
-
-                    if hasExclude:
                         idx += 1
                         continue
 
@@ -151,15 +106,25 @@ def mkdir_p(path):
 
 def path_copy(src_path, des_path, sub_path):
 
+    # print("path_copy")
+    # print("src_path: " + src_path)
+    # print("des_path: " + des_path)
+    # print("sub_path: " + sub_path)
+
     des_folder = des_path
 
     prefix_dir, file_name = os.path.split(sub_path)
     if len(prefix_dir) > 0:
-        des_folder += "/" + prefix_dir
+        des_folder = os.path.join(des_folder, prefix_dir)
 
     mkdir_p(des_folder)
 
-    shutil.copy(os.path.join(src_path, sub_path), des_folder + "/" + file_name)
+    print("des_folder: " + des_folder)
+
+    cp_src = os.path.join(src_path, sub_path)
+    cp_des = os.path.join(des_path, sub_path)
+
+    shutil.copy(cp_src, cp_des)
 
 def copy_diffs(src_path, des_path, diffs):
     if os.path.isdir(des_path):
@@ -173,12 +138,15 @@ def copy_diffs(src_path, des_path, diffs):
         path_copy(src_path, des_path, file)
         idx += 1
 
-def zip_tag_diffs(path, prefixes, excludes):
+def zip_tag_diffs(path, folders):
+
+    if path[-1] == "/":
+        path = path[:-1]
 
     parent_path, src = os.path.split(path)
 
-    print("parent_path: " + parent_path)
-    print("src: " + src)
+    print("zip_tag_diffs parent_path: " + parent_path)
+    print("zip_tag_diffs src: " + src)
     os.chdir(path)
     tag_list = get_git_tags()
 
@@ -202,7 +170,7 @@ def zip_tag_diffs(path, prefixes, excludes):
 
             print(run_cmd(['git', 'checkout', end_commit]))
 
-            diffs = get_file_diff(start_commit, end_commit, prefixes, excludes)
+            diffs = get_file_diff(start_commit, end_commit, folders)
 
             des_folder = parent_path + "/" + start_tag + "_" + end_tag
 
@@ -222,6 +190,109 @@ def zip_tag_diffs(path, prefixes, excludes):
 
     print("zip git tag diffs Done")
 
+def git_get_current_commit():
+    line = ""
+    ls = run_cmd(['git', 'show', '-s'])
+    lines = ls.split("\n")
+    if len(lines) > 0:
+        line = lines[0]
+        line = line.strip()
+        line = line.strip("commit")
+        line = line.strip()
+    return line
+
+def zip_commit_diffs(path, folders, start_commit, end_commit):
+    print("zip_commit_diffs start commit: " + start_commit)
+    print("zip_commit_diffs end commit: " + end_commit)
+
+    if path[-1] == "/":
+        path = path[:-1]
+
+    parent_path, src = os.path.split(path)
+
+    print("zip_tag_diffs parent_path: " + parent_path)
+    print("zip_tag_diffs src: " + src)
+
+    os.chdir(path)
+
+    print("zip diff: " + start_commit + " - " + end_commit)
+
+    print(run_cmd(['git', 'checkout', end_commit]))
+
+    diffs = get_file_diff(start_commit, end_commit, folders)
+
+    des_folder = parent_path + "/B" + start_commit[:7] + "_" + end_commit[:7]
+
+    copy_diffs(path, des_folder, diffs)
+
+    os.chdir(des_folder)
+    print("cd " + os.getcwd())
+
+    cmd = "zip -r ../B" + start_commit[:7] + "-" + end_commit[:7] + ".zip *"
+    os.system(cmd)
+
+    shutil.rmtree(des_folder)
+
+    print("zip git commit diffs Done")
+
+def cmd_getargs():
+
+    arg_dict = {}
+    arg_list = []
+
+    tmp_key = ""
+    tmp_value = ""
+
+    idx = 0
+    while idx < len(sys.argv):
+        single_arg = sys.argv[idx]
+
+        if single_arg[0] == '-':
+            if len(tmp_key) > 0 and len(tmp_value) == 0:
+                if arg_dict.has_key(tmp_key):
+                    if tmp_key in arg_list:
+                        obj = arg_dict[tmp_key]
+                        obj.append(tmp_value)
+                        arg_dict[tmp_key] = obj
+                    else:
+                        obj = []
+                        obj.append(arg_dict[tmp_key])
+                        obj.append(tmp_value)
+                        arg_dict[tmp_key] = obj
+                        arg_list.append(tmp_key)
+                else:
+                    arg_dict[tmp_key] = tmp_value
+            tmp_key = single_arg[1:]
+        else:
+            tmp_value = single_arg.decode("utf-8")
+
+        if tmp_key == "":
+            tmp_value = ""
+            idx += 1
+            continue
+
+        if len(tmp_key) > 0 and len(tmp_value) > 0:
+            if arg_dict.has_key(tmp_key):
+                if tmp_key in arg_list:
+                    obj = arg_dict[tmp_key]
+                    obj.append(tmp_value)
+                    arg_dict[tmp_key] = obj
+                else:
+                    obj = []
+                    obj.append(arg_dict[tmp_key])
+                    obj.append(tmp_value)
+                    arg_dict[tmp_key] = obj
+                    arg_list.append(tmp_key)
+            else:
+                arg_dict[tmp_key] = tmp_value
+
+            tmp_key = ""
+            tmp_value = ""
+
+        idx += 1
+
+    return arg_dict
+
 def __main__():
 
     # self_install
@@ -229,55 +300,63 @@ def __main__():
         self_install("gitagzip.py", "/usr/local/bin")
         return
 
-    path = ""
-    if len(sys.argv) > 1:
-        path = sys.argv[1]
-    else:
+    if len(sys.argv) < 2:
+        print("using gitagzip [git-path] [-l] to list all tags")
+        print("using gitagzip [git-path] [-f folder] to zip git tag diffs")
+        print("using gitagzip [git-path] [-f folder] [-s start commit] [-e end commit] to zip git commit diffs")
         return
 
-    if len(path) == 0:
-        print("using gitagzip [git-path] [-p prefix] [-e exclude] to zip git tag diffs")
-        print("using gitagzip test1 to make test git repository")
-        print("using gitagzip test2 to make test git repository")
+    path = sys.argv[1]
+
+    if str(path).startswith("-"):
+        path = os.getcwd()
+
+    if not str(path).startswith("/"):
+        path = os.path.join(os.getcwd(), path)
+
+    os.chdir(path)
+
+    args = cmd_getargs()
+
+    if args.has_key("l"):
+        print("list all tags in [" + os.getcwd() + "]:")
+        tag_list = get_git_tags()
+        idx = 0
+        while idx < len(tag_list):
+            tag_obj = tag_list[idx]
+            print("\ttag:\t" + tag_obj["tag"] + "\tcommit:\t" + tag_obj["commit"])
+            idx += 1
+        print("Done")
         return
 
-    if path == "test1":
-        path = os.getcwd()
-        path += "/test-repo1"
-        mkdir_p(path)
-        os.chdir(path)
-        os.system("git init")
-        make_test1_commits(path)
-    elif path == "test2":
-        path = os.getcwd()
-        path += "/test-repo2"
-        mkdir_p(path)
-        os.chdir(path)
-        os.system("git init")
-        make_test2_commits(path)
-    else:
-        prefixes = []
-        excludes = []
+    folders = []
 
-        idx = 2
-        while idx < len(sys.argv) - 1:
-            key = sys.argv[idx]
-            value = sys.argv[idx + 1]
+    arg_folders = args.get("f", [])
+    if not isinstance(arg_folders, list):
+        tmp = []
+        tmp.append(arg_folders)
+        arg_folders = tmp
 
-            if key.lower() == "-p":
-                prefixes.append(value)
+    idx = 0
+    while idx < len(arg_folders):
+        af = arg_folders[idx]
+        if str(af).startswith("/"):
+            af = af[len(path) + 1:]
+        folders.append(af)
+        idx += 1
 
-            if key.lower() == "-e":
-                excludes.append(value)
+    run_cmd(['git', 'config', '--global', 'core.quotepath', 'off'])
 
-            idx += 2
-
-        if path[-1] == "/":
-            path = path[:len(path) - 1]
-
-        if path[0] != "/":
-            zip_tag_diffs(os.getcwd() + "/" + path, prefixes, excludes)
+    if args.has_key("s"):
+        start_commit = args["s"]
+        end_commit = ""
+        if args.has_key("e"):
+            end_commit = args["e"]
         else:
-            zip_tag_diffs(path, prefixes, excludes)
+            end_commit = git_get_current_commit()
+
+        zip_commit_diffs(path, folders, start_commit, end_commit)
+    else:
+        zip_tag_diffs(path, folders)
 
 __main__()
