@@ -68,7 +68,7 @@ def get_git_tags():
 
     return ret
 
-def get_file_diff(commit1, commit2, folders):
+def get_file_diff(commit1, commit2, folder):
     ls = run_cmd(['git', 'diff', '--name-status', commit1, commit2])
     lines = ls.split("\n")
 
@@ -82,18 +82,8 @@ def get_file_diff(commit1, commit2, folders):
             file = sl[-1]
 
             if act == "A" or act == "M":
-                if len(folders) > 0:
-                    hasPrefix = False
-                    for p in folders:
-                        if file.startswith(p):
-                            hasPrefix = True
-                            break
-
-                    if not hasPrefix:
-                        idx += 1
-                        continue
-
-                ret.append(file)
+                if file.startswith(folder):
+                    ret.append(file)
 
         idx += 1
 
@@ -143,7 +133,7 @@ def copy_diffs(src_path, des_path, diffs):
         path_copy(src_path, des_path, file)
         idx += 1
 
-def zip_tag_diffs(path, folders):
+def zip_tag_diffs(path):
 
     if path[-1] == "/":
         path = path[:-1]
@@ -175,13 +165,82 @@ def zip_tag_diffs(path, folders):
 
             print(run_cmd(['git', 'checkout', end_commit]))
 
-            diffs = get_file_diff(start_commit, end_commit, folders)
+            diffs = get_file_diff(start_commit, end_commit, "")
 
             des_folder = parent_path + "/" + start_tag + "_" + end_tag
 
             copy_diffs(path, des_folder, diffs)
 
-            echo_file(os.path.join(des_folder, "ver"), end_commit[:7])
+            out_ver = start_tag
+            if len(out_ver) > 7:
+                out_ver = out_ver[:7]
+
+            echo_file(os.path.join(des_folder, "ver"), out_ver)
+
+            os.chdir(des_folder)
+            print("cd " + os.getcwd())
+
+            cmd = "zip -r ../" + start_tag + "_" + end_tag + ".zip *"
+            os.system(cmd)
+
+            shutil.rmtree(des_folder)
+
+            jdx += 1
+
+        idx += 1
+
+    print("zip git tag diffs Done")
+
+def zip_tag_diffs_in_folder(path, folder):
+
+    if path[-1] == "/":
+        path = path[:-1]
+
+    parent_path, src = os.path.split(path)
+
+    print("zip_tag_diffs parent_path: " + parent_path)
+    print("zip_tag_diffs src: " + src)
+    os.chdir(path)
+    tag_list = get_git_tags()
+
+    idx = 0
+    jdx = 0
+
+    while idx < len(tag_list) - 1:
+
+        jdx = idx + 1
+        while jdx < len(tag_list):
+
+            os.chdir(path)
+
+            start_tag = tag_list[idx]["tag"]
+            start_commit = tag_list[idx]["commit"]
+
+            end_tag = tag_list[jdx]["tag"]
+            end_commit = tag_list[jdx]["commit"]
+
+            print("zip diff: " + start_tag + "_" + end_tag)
+
+            print(run_cmd(['git', 'checkout', end_commit]))
+
+            diffs = get_file_diff(start_commit, end_commit, folder)
+
+            diffs_should_copy = []
+            for p in diffs:
+                p = p[len(folder):]
+                if p[0] == "/":
+                    p = p[1:]
+                diffs_should_copy.append(p)
+
+            des_folder = parent_path + "/" + start_tag + "_" + end_tag
+
+            copy_diffs(os.path.join(path, folder), des_folder, diffs_should_copy)
+
+            out_ver = start_tag
+            if len(out_ver) > 7:
+                out_ver = out_ver[:7]
+
+            echo_file(os.path.join(des_folder, "ver"), out_ver)
 
             os.chdir(des_folder)
             print("cd " + os.getcwd())
@@ -208,7 +267,7 @@ def git_get_current_commit():
         line = line.strip()
     return line
 
-def zip_commit_diffs(path, folders, start_commit, end_commit):
+def zip_commit_diffs_in_folder(path, folder, start_commit, end_commit):
     print("zip_commit_diffs start commit: " + start_commit)
     print("zip_commit_diffs end commit: " + end_commit)
 
@@ -226,13 +285,56 @@ def zip_commit_diffs(path, folders, start_commit, end_commit):
 
     print(run_cmd(['git', 'checkout', end_commit]))
 
-    diffs = get_file_diff(start_commit, end_commit, folders)
+    diffs = get_file_diff(start_commit, end_commit, folder)
+
+    diffs_should_copy = []
+    for p in diffs:
+        p = p[len(folder):]
+        if p[0] == "/":
+            p = p[1:]
+        diffs_should_copy.append(p)
+
+    des_folder = parent_path + "/" + start_commit[:7]
+
+    copy_diffs(os.path.join(path, folder), des_folder, diffs_should_copy)
+
+    echo_file(os.path.join(des_folder, "ver"), start_commit[:7])
+
+    os.chdir(des_folder)
+    print("cd " + os.getcwd())
+
+    cmd = "zip -r ../" + start_commit[:7] + ".zip *"
+    os.system(cmd)
+
+    shutil.rmtree(des_folder)
+
+    print("zip git commit diffs Done")
+
+def zip_commit_diffs(path, start_commit, end_commit):
+    print("zip_commit_diffs start commit: " + start_commit)
+    print("zip_commit_diffs end commit: " + end_commit)
+
+    if path[-1] == "/":
+        path = path[:-1]
+
+    parent_path, src = os.path.split(path)
+
+    print("zip_tag_diffs parent_path: " + parent_path)
+    print("zip_tag_diffs src: " + src)
+
+    os.chdir(path)
+
+    print("zip diff: " + start_commit + " - " + end_commit)
+
+    print(run_cmd(['git', 'checkout', end_commit]))
+
+    diffs = get_file_diff(start_commit, end_commit, [])
 
     des_folder = parent_path + "/" + start_commit[:7]
 
     copy_diffs(path, des_folder, diffs)
 
-    echo_file(os.path.join(des_folder, "ver"), end_commit[:7])
+    echo_file(os.path.join(des_folder, "ver"), start_commit[:7])
 
     os.chdir(des_folder)
     print("cd " + os.getcwd())
@@ -356,16 +458,34 @@ def __main__():
 
     run_cmd(['git', 'config', '--global', 'core.quotepath', 'off'])
 
-    if args.has_key("s"):
-        start_commit = args["s"]
-        end_commit = ""
-        if args.has_key("e"):
-            end_commit = args["e"]
-        else:
-            end_commit = git_get_current_commit()
+    if len(folders) > 0:
+        idx = 0
+        while idx < len(folders):
+            folder = folders[idx]
+            if args.has_key("s"):
+                start_commit = args["s"]
+                end_commit = ""
+                if args.has_key("e"):
+                    end_commit = args["e"]
+                else:
+                    end_commit = git_get_current_commit()
 
-        zip_commit_diffs(path, folders, start_commit, end_commit)
+                zip_commit_diffs_in_folder(path, folder, start_commit, end_commit)
+            else:
+                zip_tag_diffs_in_folder(path, folder)
+
+            idx += 1
     else:
-        zip_tag_diffs(path, folders)
+        if args.has_key("s"):
+            start_commit = args["s"]
+            end_commit = ""
+            if args.has_key("e"):
+                end_commit = args["e"]
+            else:
+                end_commit = git_get_current_commit()
+
+            zip_commit_diffs(path, folders, start_commit, end_commit)
+        else:
+            zip_tag_diffs(path, folders)
 
 __main__()
