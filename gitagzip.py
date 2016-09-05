@@ -167,20 +167,16 @@ def zip_tag_diffs(path):
 
             diffs = get_file_diff(start_commit, end_commit, "")
 
-            des_folder = parent_path + "/" + start_tag + "_" + end_tag
+            des_folder = parent_path + "/" + start_commit[:7] + "_" + end_commit[:7]
 
             copy_diffs(path, des_folder, diffs)
 
-            out_ver = start_tag
-            if len(out_ver) > 7:
-                out_ver = out_ver[:7]
-
-            echo_file(os.path.join(des_folder, "ver"), out_ver)
+            echo_file(os.path.join(des_folder, "ver"), end_commit[:7])
 
             os.chdir(des_folder)
             print("cd " + os.getcwd())
 
-            cmd = "zip -r ../" + start_tag + "_" + end_tag + ".zip *"
+            cmd = "zip -r ../" + start_commit[:7] + "_" + end_commit[:7] + ".zip *"
             os.system(cmd)
 
             shutil.rmtree(des_folder)
@@ -232,20 +228,16 @@ def zip_tag_diffs_in_folder(path, folder):
                     p = p[1:]
                 diffs_should_copy.append(p)
 
-            des_folder = parent_path + "/" + start_tag + "_" + end_tag
+            des_folder = parent_path + "/" + start_commit[:7] + "_" + end_commit[:7]
 
             copy_diffs(os.path.join(path, folder), des_folder, diffs_should_copy)
 
-            out_ver = start_tag
-            if len(out_ver) > 7:
-                out_ver = out_ver[:7]
-
-            echo_file(os.path.join(des_folder, "ver"), out_ver)
+            echo_file(os.path.join(des_folder, "ver"), end_commit[:7])
 
             os.chdir(des_folder)
             print("cd " + os.getcwd())
 
-            cmd = "zip -r ../" + start_tag + "_" + end_tag + ".zip *"
+            cmd = "zip -r ../" + start_commit[:7] + "_" + end_commit[:7] + ".zip *"
             os.system(cmd)
 
             shutil.rmtree(des_folder)
@@ -294,16 +286,16 @@ def zip_commit_diffs_in_folder(path, folder, start_commit, end_commit):
             p = p[1:]
         diffs_should_copy.append(p)
 
-    des_folder = parent_path + "/" + start_commit[:7]
+    des_folder = parent_path + "/" + start_commit[:7] + "_" + end_commit[:7]
 
     copy_diffs(os.path.join(path, folder), des_folder, diffs_should_copy)
 
-    echo_file(os.path.join(des_folder, "ver"), start_commit[:7])
+    echo_file(os.path.join(des_folder, "ver"), end_commit[:7])
 
     os.chdir(des_folder)
     print("cd " + os.getcwd())
 
-    cmd = "zip -r ../" + start_commit[:7] + ".zip *"
+    cmd = "zip -r ../" + start_commit[:7] + "_" + end_commit[:7] + ".zip *"
     os.system(cmd)
 
     shutil.rmtree(des_folder)
@@ -330,16 +322,16 @@ def zip_commit_diffs(path, start_commit, end_commit):
 
     diffs = get_file_diff(start_commit, end_commit, [])
 
-    des_folder = parent_path + "/" + start_commit[:7]
+    des_folder = parent_path + "/" + start_commit[:7] + "_" + end_commit[:7]
 
     copy_diffs(path, des_folder, diffs)
 
-    echo_file(os.path.join(des_folder, "ver"), start_commit[:7])
+    echo_file(os.path.join(des_folder, "ver"), end_commit[:7])
 
     os.chdir(des_folder)
     print("cd " + os.getcwd())
 
-    cmd = "zip -r ../" + start_commit[:7] + ".zip *"
+    cmd = "zip -r ../" + start_commit[:7] + "_" + end_commit[:7] + ".zip *"
     os.system(cmd)
 
     shutil.rmtree(des_folder)
