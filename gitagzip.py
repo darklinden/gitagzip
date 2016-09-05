@@ -40,6 +40,11 @@ def self_install(file, des):
     shutil.copy(file_path, to_path)
     run_cmd(['chmod', 'a+x', to_path])
 
+def echo_file(path, content):
+    f = open(path, "wb")
+    f.write(content)
+    f.close()
+
 def get_git_tags():
 
     tags = run_cmd(['git', 'tag', '--list'])
@@ -176,6 +181,8 @@ def zip_tag_diffs(path, folders):
 
             copy_diffs(path, des_folder, diffs)
 
+            echo_file(os.path.join(des_folder, "ver"), end_commit[:7])
+
             os.chdir(des_folder)
             print("cd " + os.getcwd())
 
@@ -221,14 +228,16 @@ def zip_commit_diffs(path, folders, start_commit, end_commit):
 
     diffs = get_file_diff(start_commit, end_commit, folders)
 
-    des_folder = parent_path + "/B" + start_commit[:7] + "_" + end_commit[:7]
+    des_folder = parent_path + "/" + start_commit[:7]
 
     copy_diffs(path, des_folder, diffs)
+
+    echo_file(os.path.join(des_folder, "ver"), end_commit[:7])
 
     os.chdir(des_folder)
     print("cd " + os.getcwd())
 
-    cmd = "zip -r ../B" + start_commit[:7] + "-" + end_commit[:7] + ".zip *"
+    cmd = "zip -r ../" + start_commit[:7] + ".zip *"
     os.system(cmd)
 
     shutil.rmtree(des_folder)
